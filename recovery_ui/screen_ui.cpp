@@ -182,7 +182,6 @@ int TextMenu::DrawItems(int x, int y, int screen_width, bool long_press) const {
   int item_container_offset = offset; // store it for drawing scrollbar on most top
 
   for (size_t i = MenuStart(); i < MenuEnd(); ++i) {
-    bool bold = false;
     if (i == selection()) {
       // Draw the highlight bar.
       draw_funcs_.SetColor(long_press ? UIElement::MENU_SEL_BG_ACTIVE : UIElement::MENU_SEL_BG);
@@ -190,11 +189,10 @@ int TextMenu::DrawItems(int x, int y, int screen_width, bool long_press) const {
       int bar_height = padding + char_height_ + padding;
       draw_funcs_.DrawHighlightBar(0, y + offset, screen_width, bar_height);
 
-      // Bold white text for the selected item.
+      // Colored text for the selected item.
       draw_funcs_.SetColor(UIElement::MENU_SEL_FG);
-      bold = true;
     }
-    offset += draw_funcs_.DrawTextLine(x, y + offset, TextItem(i), bold);
+    offset += draw_funcs_.DrawTextLine(x, y + offset, TextItem(i), false /* bold */);
 
     draw_funcs_.SetColor(UIElement::MENU);
   }
@@ -552,7 +550,10 @@ void ScreenRecoveryUI::draw_foreground_locked() {
   }
 }
 
-/* Lineage teal: #167c80 */
+/* recovery dark:  #7C4DFF
+   recovery light: #F890FF
+   fastbootd dark: #E65100
+   fastboot light: #FDD835 */
 void ScreenRecoveryUI::SetColor(UIElement e) const {
   switch (e) {
     case UIElement::INFO:
@@ -562,18 +563,29 @@ void ScreenRecoveryUI::SetColor(UIElement e) const {
         gr_color(0xf8, 0x90, 0xff, 255);
       break;
     case UIElement::HEADER:
-      gr_color(247, 0, 6, 255);
+      if (fastbootd_logo_enabled_)
+        gr_color(0xfd, 0xd8,0x35, 255);
+      else
+        gr_color(0xf8, 0x90, 0xff, 255);
       break;
     case UIElement::MENU:
-    case UIElement::MENU_SEL_BG:
       gr_color(0xd8, 0xd8, 0xd8, 255);
+      break;
+    case UIElement::MENU_SEL_BG:
+    case UIElement::SCROLLBAR:
+      if (fastbootd_logo_enabled_)
+        gr_color(0xe6, 0x51, 0x00, 255);
+      else
+        gr_color(0x7c, 0x4d, 0xff, 255);
       break;
     case UIElement::MENU_SEL_BG_ACTIVE:
       gr_color(0, 156, 100, 255);
       break;
     case UIElement::MENU_SEL_FG:
-    case UIElement::SCROLLBAR:
-      gr_color(0x16, 0x7c, 0x80, 255);
+      if (fastbootd_logo_enabled_)
+        gr_color(0, 0, 0, 255);
+      else
+        gr_color(0xd8, 0xd8, 0xd8, 255);
       break;
     case UIElement::LOG:
       gr_color(196, 196, 196, 255);
@@ -784,15 +796,6 @@ void ScreenRecoveryUI::draw_screen_locked() {
 void ScreenRecoveryUI::draw_menu_and_text_buffer_locked(
     const std::vector<std::string>& help_message) {
   int y = margin_height_;
-
-  if (fastbootd_logo_ && fastbootd_logo_enabled_) {
-    // Try to get this centered on screen.
-    auto width = gr_get_width(fastbootd_logo_.get());
-    auto height = gr_get_height(fastbootd_logo_.get());
-    auto centered_x = ScreenWidth() / 2 - width / 2;
-    DrawSurface(fastbootd_logo_.get(), 0, 0, width, height, centered_x, y);
-    y += height;
-  }
 
   if (menu_) {
     auto& logo = fastbootd_logo_enabled_ ? fastbootd_logo_ : lineage_logo_;
